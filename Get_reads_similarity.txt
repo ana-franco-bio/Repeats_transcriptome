@@ -1,0 +1,25 @@
+module load blast+
+#creat a custom BLAST database from the reads file from a cluster
+makeblastdb -dbtype nucl -in reads.fasta
+#run BLAST, searching the reads against themselves
+blastn -db reads.fasta -evalue 0.0005 -num_descriptions 53242 -num_alignments 53242 -num_threads 1 -dust no -query reads.fasta -out all_BLAST_hits_for_reads_in_clusterCLX.bln
+
+#go to your clusters file
+cd /data/scratch/btx671/Bowtie2/clusters/clustersA10/clustersOK
+
+if [ ${SGE_TASK_ID} -lt 10 ]
+then
+	DIR=dir_CL000${SGE_TASK_ID}
+elif [ ${SGE_TASK_ID} -lt 100 ]
+then
+	DIR=dir_CL00${SGE_TASK_ID}
+elif [ ${SGE_TASK_ID} -lt 1000 ]
+then
+	DIR=dir_CL0${SGE_TASK_ID}
+fi
+cd $DIR
+
+FILE=all_BLAST_hits_for_reads_in_clusterCL${SGE_TASK_ID}.bln
+
+module load perl5lib
+perl extract_read_IDs_from_BLAST_report_for_hits_of_given_overlap_and_identity_v7.pl "all_BLAST_hits_for_reads_in_clusterCL${SGE_TASK_ID}.bln" "${SGE_TASK_ID}_80_length_80_similarity_reads" "80" "80"
