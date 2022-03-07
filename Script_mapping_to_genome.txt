@@ -1,0 +1,84 @@
+#!/bin/sh
+#$ -cwd
+#$ -j y
+#$ -pe smp 1
+#$ -l h_rt=12:0:0
+#$ -l h_vmem=50G
+
+module load java
+module load samtools
+
+
+INPUT=mappedlengthfiltered_allrepeats_SW1_align.bam #Result of previous mapping of Bowtie2 (contigs x RNA libraries)
+
+#samtools sort the bam file
+samtools sort mappedlengthfiltered_allrepeats_SW1_align.bam -o mappedlengthfiltered_allrepeats_SW1_align_sorted.bam
+
+#I am using below the one-liner to extract fastq read files from bam file, it is also adding the contigs information of which the reads are mapped to. 
+#one-liner extract the fastq files with reads names and mapped repeat names. 
+samtools view mappedlengthfiltered_allrepeats_SW1_align_sorted.bam | awk -F "\t" '{print "@"$1"_"$3"\n"$10"\n""+""\n"$11}' > sorted_mapped_SW1.fastq
+
+module load star
+#run genome index
+STAR --runThreadN ${NSLOTS} --runMode genomeGenerate --genomeDir /data/scratch/btx671/Mapping_transcripts_assembly/chromosome_index --genomeFastaFiles /data/scratch/btx671/Mapping_transcripts_assembly/Sviridis_500_v2.0.fa --sjdbGTFfile /data/scratch/btx671/Mapping_transcripts_assembly/Sviridis_500_v2.1.gene.gtf --sjdbOverhang 100 --limitBAMsortRAM 11000000000
+
+#aligning the reads to chromosome data
+	STAR --genomeDir /data/scratch/btx671/Mapping_transcripts_assembly/chromosome_index --runThreadN ${NSLOTS} --readFilesIn /data/scratch/btx671/Mapping_transcripts_assembly/sorted_mapped_SW1.fastq --outFileNamePrefix star_results_SW1 --outSAMtype BAM SortedByCoordinate --outSAMunmapped Within --outMultimapperOrder Random --outSAMattributes Standard
+
+
+### Next is converting the bam file to bed file
+
+module load bedtools 
+bedtools bamtobed -i star_results_SW1Aligned.sortedByCoord.out.bam > star_results_SW1Aligned.sortedByCoord.out.bed
+
+#convert bed to gff3
+module load genometools
+gt bed_to_gff3 star_results_SW1Aligned.sortedByCoord.out.bed > SW1ok_gff3
+
+#replace with Repeat_Types
+while read p; do echo "$p"; sed -i -e $p SW1ok_gff3; done < replace_ok.txt
+
+#Split the files to use as input in Circos (each ring is one type of repeat)
+grep 'Ogree'  SW1ok_gff3 > Ogree_W1_stem.gff3
+grep 'Retand'  SW1ok_gff3 > Retand_W1_stem.gff3
+grep 'Tekay'  SW1ok_gff3 > Tekay_W1_stem.gff3
+grep 'Angela'  SW1ok_gff3 > Angela_W1_stem.gff3
+grep 'Ivana'  SW1ok_gff3 > Ivana_W1_stem.gff3
+grep 'CRM'  SW1ok_gff3 > CRM_W1_stem.gff3
+grep 'Athila'  SW1ok_gff3 > Athila_W1_stem.gff3
+grep 'SIRE'  SW1ok_gff3 > SIRE_W1_stem.gff3
+grep 'ClassII'  SW1ok_gff3 > ClassII_W1_stem.gff3
+grep 'Reina'  SW1ok_gff3 > Reina_W1_stem.gff3
+grep 'Tork'  SW1ok_gff3 > Tork_W1_stem.gff3
+grep 'Ale'  SW1ok_gff3 > Ale_W1_stem.gff3
+grep 'Bianca'  SW1ok_gff3 > Bianca_W1_stem.gff3
+grep 'Ikeros'  SW1ok_gff3 > Ikeros_W1_stem.gff3
+grep 'TAR'  SW1ok_gff3 > TAR_W1_stem.gff3
+grep 'Harbinger'  SW1ok_gff3 > Harbinger_W1_stem.gff3
+grep 'CACTA'  SW1ok_gff3 > CACTA_W1_stem.gff3
+grep 'Mutator'  SW1ok_gff3 > Mutator_W1_stem.gff3
+grep 'hAT'  SW1ok_gff3 > hAT_W1_stem.gff3
+grep 'Helitron'  SW1ok_gff3 > Helitron_W1_stem.gff3
+
+
+#Edit the files to use as input in Circos
+cut -f1,4,5,6 Ogree_W1_stem.gff3 > OKOgree_W1_stem.gff3
+cut -f1,4,5,6 Retand_W1_stem.gff3 > OKRetand_W1_stem.gff3
+cut -f1,4,5,6 Tekay_W1_stem.gff3 > OKTekay_W1_stem.gff3
+cut -f1,4,5,6 Angela_W1_stem.gff3 > OKAngela_W1_stem.gff3
+cut -f1,4,5,6 Ivana_W1_stem.gff3 > OKIvana_W1_stem.gff3
+cut -f1,4,5,6 CRM_W1_stem.gff3 > OKCRM_W1_stem.gff3
+cut -f1,4,5,6 Athila_W1_stem.gff3 > OKAthila_W1_stem.gff3
+cut -f1,4,5,6 SIRE_W1_stem.gff3 > OKSIRE_W1_stem.gff3
+cut -f1,4,5,6 ClassII_W1_stem.gff3 > OKClassII_W1_stem.gff3
+cut -f1,4,5,6 Reina_W1_stem.gff3 > OKReina_W1_stem.gff3
+cut -f1,4,5,6 Tork_W1_stem.gff3 > OKTork_W1_stem.gff3
+cut -f1,4,5,6 Ale_W1_stem.gff3 > OKAle_W1_stem.gff3
+cut -f1,4,5,6 Bianca_W1_stem.gff3 > OKBianca_W1_stem.gff3
+cut -f1,4,5,6 Ikeros_W1_stem.gff3 > OKIkeros_W1_stem.gff3
+cut -f1,4,5,6 TAR_W1_stem.gff3 > OKTAR_W1_stem.gff3
+cut -f1,4,5,6 Harbinger_W1_stem.gff3 > OKHarbinger_W1_stem.gff3
+cut -f1,4,5,6 CACTA_W1_stem.gff3 > OKCACTA_W1_stem.gff3
+cut -f1,4,5,6 Mutator_W1_stem.gff3 > OKMutator_W1_stem.gff3
+cut -f1,4,5,6 hAT_W1_stem.gff3 > OKhAT_W1_stem.gff3
+cut -f1,4,5,6 Helitron_W1_stem.gff3 > OKHelitron_W1_stem.gff3
