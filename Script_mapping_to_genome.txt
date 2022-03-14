@@ -9,12 +9,12 @@ module load java
 module load samtools
 
 
-INPUT=mappedlengthfiltered_allrepeats_SW1_align.bam #Result of previous mapping of Bowtie2 (contigs x RNA libraries)
+INPUT=mappedlengthfiltered_allrepeats_SW1_align.bam #Results from previous mapping with Bowtie2 (contigs x RNA libraries)
 
 #samtools sort the bam file
 samtools sort mappedlengthfiltered_allrepeats_SW1_align.bam -o mappedlengthfiltered_allrepeats_SW1_align_sorted.bam
 
-#I am using below the one-liner to extract fastq read files from bam file, it is also adding the contigs information of which the reads are mapped to. 
+#The one-liner to extract fastq read files from bam file, it is also adding the contigs information of which the reads are mapped to. 
 #one-liner extract the fastq files with reads names and mapped repeat names. 
 samtools view mappedlengthfiltered_allrepeats_SW1_align_sorted.bam | awk -F "\t" '{print "@"$1"_"$3"\n"$10"\n""+""\n"$11}' > sorted_mapped_SW1.fastq
 
