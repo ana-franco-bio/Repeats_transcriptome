@@ -50,12 +50,13 @@ for (file in filelist) {
 }
 Peaksimilarity
 
-
-#Plot simple histogram - Figure S1
+Sim_dataOK
+#Plot simple histogram - Figure S2
 Similarity_ <- Sim_dataOK$similarity
 a1 <- hist(Similarity_, col = NULL, breaks = 40, xlim=c(85,100))
+moda <- names(sort(-table(Similarity_)))[1]
 
-#Graphs Figure2
+#Graphs Figure1
 #Bar graphs and boxplots
 #Genome Proportion (GP)
 GP <-read.table("Genomic_features.txt",header = TRUE, check.names = FALSE, sep = "\t") 
@@ -91,7 +92,7 @@ g + theme_classic() + scale_fill_manual(values = c("darkblue", "grey", "darkmage
 g
 
 
-#Bar graphs TP - Figures 5 and 6
+#Bar graphs TP - Figure 6
 #load data
 Data_<-read.table("Mean_TP.txt", header = TRUE, check.names = FALSE, sep = "\t")
 attach(Data_)
@@ -157,24 +158,11 @@ ks.test(Genomic_data$Similarity, "pnorm", mean(Genomic_data$Similarity), sd(Geno
 ks.test(Genomic_data$Log_GP, "pnorm", mean(Genomic_data$Log_GP), sd(Genomic_data$Log_GP))
 ks.test(Genomic_data$GC_ratio, "pnorm", mean(Genomic_data$GC_ratio), sd(Genomic_data$GC_ratio))
 
-#Correlation tests
-library(corrplot)
-library(RColorBrewer)
-library(ggpubr)
-library(ggplot2)
-#Pearson's coefficient
-M<- cor(Genomic_data, method = "pearson")
-M
-#Test the significance
-res <- cor.test(Genomic_data$GC_ratio, Genomic_data$Log_GP, 
-                method = "pearson")
-res
-
 
 ###Linear models###
 
 #Load data
-GP <-read.table("Genomic_features.txt",header = TRUE, check.names = FALSE, sep = "\t")
+GP <-read.table("Genomic_features_final.txt",header = TRUE, check.names = FALSE, sep = "\t")
 Ribo_dep <- read.table("All_repeats_ribodepleted.txt",header = TRUE, check.names = FALSE, sep = "\t")
 Leaf_polyA <- read.table("Leaf_polyA.txt",header = TRUE, check.names = FALSE, sep = "\t")
 Inflor_polyA <- read.table("Inflor_polyA.txt",header = TRUE, check.names = FALSE, sep = "\t")
@@ -186,9 +174,13 @@ Ribo_dep$Repeat_Type <- as.factor(Ribo_dep$Repeat_Type)
 Ribo_dep$Annotation <- as.factor(Ribo_dep$Annotation)
 str(Ribo_dep)
 
+GP$Repeat_Type <- as.factor(GP$Repeat_Type)
+GPok <- as.data.frame(GP)
 #Subset Ty1/copia and Ty3/gypsy elements
-Copia_Gypsy_Genomic <- subset(GP, GP$Repeat_Type == "Copia"|GP$Repeat_Type =="Gypsy")
-Transposons_Genomic <- subset(GP, GP$Repeat_Type == "Class_II")
+Copia_Gypsy_Genomic <- subset(GPok, GPok$Repeat_Type == "Copia"|GPok$Repeat_Type =="Gypsy")
+Transposons_Genomic <- subset(GPok, GPok$Repeat_Type == "ClassII")
+Gypsy_genomic <- subset(GPok, GPok$Repeat_Type=="Gypsy")
+Copia_genomic <- subset(GPok, GPok$Repeat_Type=="Copia")
 Copia_Gypsy_Ribo <-subset(Ribo_dep, Ribo_dep$Repeat_Type == "Copia"|Ribo_dep$Repeat_Type =="Gypsy")
 Transposons_Ribo <- subset(Ribo_dep, Ribo_dep$Repeat_Type == "Class_II")
 Copia_Gypsy_Leaf <-subset(Leaf_polyA, Leaf_polyA$Repeat_Type == "Copia"|Leaf_polyA$Repeat_Type =="Gypsy")
@@ -197,12 +189,21 @@ Copia_Gypsy_Inflor <-subset(Inflor_polyA, Inflor_polyA$Repeat_Type == "Copia"|In
 Transposons_Inflor <-subset(Inflor_polyA, Inflor_polyA$Repeat_Type == "Class_II")
 
 #Genomic features analysis
-G1 <- lm(Log_GP ~ GC_ratio) #applied to all subsets separately
-summary (G1)
+Copia2G <- read.table("clipboard", header =TRUE)
+Genomic_1 <- lm(Log_GP ~ GC_ratio, data = Transposons_Genomic) #applied to all subsets separately
+summary(Genomic_1)
 
-G2 <- lm(Log_GP ~ Similarity, data= Copia_G1) #applied to all subsets separately
-summary (G2)
+Genomic_2 <- lm(Log_GP ~ GC_ratio, data = Copia_genomic) #applied to all subsets separately
+summary(Genomic_2)
 
+Genomic_2 <- lm(Log_GP ~ Similarity, data = Gypsy_genomic) #applied to all subsets separately
+summary(Genomic_2)
+
+Genomic_2 <- lm(Log_GP ~ Similarity, data = Copia_genomic) #applied to all subsets separately
+summary(Genomic_2)
+
+Genomic3 <- lm(GC_ratio ~ Similarity*Repeat_Type, data= Copia_Gypsy_Genomic)
+summary(Genomic3)
 #TP analysis - applied for both ribo depleted and Poly-A data
 m1 <- lm(Log_TP~ Log_GP + Tissue) #applied to all subsets separately
 summary (m1)
@@ -212,17 +213,28 @@ summary (m2)
 
 
 ##Linear model graphs- Genomic features
+library(ggplot2)
 d1 <- ggplot(Copia_Gypsy_Genomic, aes(x=GC_ratio, y=Log_GP, color=Repeat_Type, shape=Repeat_Type, alpha=1)) +
-  geom_point(aes(size=Repeat_Type, alpha=1)) + 
-  geom_smooth(data= subset(Copia_Gypsy_G, Repeat_Type == "Gypsy"),method=lm, se=FALSE, fullrange=TRUE)+
-  scale_color_manual(values=c('purple', 'orange')) +
-  scale_shape_manual(values=c(17,19))  +
+  geom_point(aes(size=Repeat_Type), alpha =1) + 
+  geom_smooth(data= subset(Copia_Gypsy_Genomic, Repeat_Type == "Gypsy"),method=lm, se=FALSE, fullrange=TRUE)+
+  scale_color_manual(values=c('orange', 'purple')) +
+  scale_shape_manual(values=c(21,24))  +
   scale_size_manual(values=c(3.5,3.5)) +
   theme_bw()
 d1
+d1 <- ggplot(Copia_Gypsy_Genomic, aes(x=GC_ratio, y=Log_GP, shape=Repeat_Type, group =Repeat_Type)) +
+  geom_point(aes(size=Repeat_Type, fill= Repeat_Type)) + 
+  geom_smooth(data= subset(Copia_Gypsy_Genomic, Repeat_Type == "Gypsy"),method=lm, se=FALSE, aes(color=Repeat_Type), fullrange=TRUE)+
+  scale_color_manual(values=c('orange', 'purple')) +
+  scale_fill_manual(values=c('orange', 'purple'))+
+  scale_shape_manual(values=c(21,24))  +
+  scale_size_manual(values=c(3.5,3.5)) +
+  theme_bw()
+d1
+
 d2 <- ggplot(Copia_Gypsy_Genomic, aes(x=Similarity, y=Log_GP, color=Repeat_Type, shape=Repeat_Type, alpha=1)) +
   geom_point(aes(size=Repeat_Type, alpha=1)) + 
-  geom_smooth(data= subset(Copia_Gypsy_G, Repeat_Type == "Copia"),method=lm, se=FALSE, fullrange=TRUE)+
+  geom_smooth(data= subset(Copia_Gypsy_Genomic, Repeat_Type == "Copia"),method=lm, se=FALSE, fullrange=TRUE)+
   scale_color_manual(values=c('purple', 'orange')) +
   scale_shape_manual(values=c(17,19))  +
   scale_size_manual(values=c(3.5,3.5)) +
@@ -241,44 +253,62 @@ figure_d <- ggarrange(d1, d2,
                       heights = c(1,1)) 
 figure_d
 
+#Subset Class II, Ty1/copia and Ty3/gypsy elements
+Copia_Setaria_F <-subset(Setaria_Flor2023, Setaria_Flor2023$Repeat_Type == "Copia")
+Gypsy_Setaria_F <- subset (Setaria_Flor2023, Setaria_Flor2023$Repeat_Type =="Agypsy")
+Transposons_Setaria_F <-subset(Setaria_Flor2023, Setaria_Flor2023$Repeat_Type == "ClassII")
+Retransposons_Setaria_F <-subset(Setaria_Flor2023, Setaria_Flor2023$Repeat_Type == "Copia"|Setaria_Flor2023$Repeat_Type =="Agypsy")
+
+#TP analysis - applied for both ribo depleted and Poly-A data
+F1 <- lm(Log_TP~ Log_GP, data = Copia_Setaria_F) #Copia Elements
+summary (F1)
+
+
+#For Gypsy elements
+F2 <- lm(Log_TP~ Log_GP, data = Gypsy_Setaria_F) #Gypsy Elements
+summary (F2)
+
+# For transposons Class II
+F3 <- lm(Log_TP~ Log_GP, data = Transposons_Setaria_F) #Class II Elements
+summary (F3)
+
+#TP with similarity and GC ratio
+#For Copia elements
+F4Sim <- lm(Log_TP~ Similarity + GC_ratio, data = Copia_Setaria_F)#applied to all subsets separately
+summary (F4Sim)
+
+#For gypsy
+F5 <- lm(Log_TP~ Similarity + GC_ratio, data = Gypsy_Setaria_F)#applied to all subsets separately
+summary (F5)
+
+#For Transposons
+F6 <- lm(Log_TP~ Similarity + GC_ratio, data = Transposons_Setaria_F)#applied to all subsets separately
+summary (F6)
+
+####################
 ##Linear models graphs - genomic and transcriptome features
 All_tissues <- read.table("clipboard", header=TRUE)
 All_tissues$Cluster <- as.factor(All_tissues$Cluster)
 All_tissuesr$Tissue <- as.factor(All_tissues$Tissue)
 All_tissues$Repeat_Type <- as.factor(All_tissues$Repeat_Type)
 
-Copia_Gypsy<-subset(All_tissues, All_tissues$Repeat_Type == "Copia"|All_tissues$Repeat_Type =="Gypsy")
-
-Scatter1 <- ggplot(data = Copia_Gypsy, aes(Log_GP, Log_TP)) +
-  geom_point(aes(shape= Repeat_Type, color = Repeat_Type, alpha= 1), size=2.5) +
-  geom_smooth(aes(color = Repeat_Type), method = lm, 
-              se = FALSE, fullrange = TRUE) +
+#Crown and Stem
+Scatter_newSetaria4 <- ggplot(Gypsy_Setaria_SC, aes(x= GC_ratio, y=  Log_TP, group = Tissue)) +
+  geom_point(aes( shape = Tissue, fill = Tissue), size=3.0) +
+  geom_smooth(aes(color = Tissue), method = lm, 
+              se = FALSE, fullrange = TRUE)+
   theme_bw() +
   theme(strip.background = element_blank(), strip.placement = "outside") +
-  facet_wrap(~Tissue) +
-  scale_color_manual(values=c('purple', 'orange')) +
-  scale_shape_manual(values=c(17,19))
+  scale_fill_manual(values=c('salmon', 'darkgrey'))+
+  scale_color_manual(values=c('salmon', 'darkgrey')) +
+  scale_shape_manual(values=c(21,21))
+Scatter_newSetaria4
 
-Scatter2 <- ggplot(data = Copia_Gypsy, aes(GC_ratio, Log_TP)) +
-  geom_point(aes(shape= Repeat_Type, color = Repeat_Type, alpha= 1), size=2.5) +
-  geom_smooth(aes(color = Repeat_Type), method = lm, 
-              se = FALSE, fullrange = TRUE) +
+#Inflorescence graphs
+Scatter_flor <- ggplot(Transposons_Setaria_F, aes(x= GC_ratio, y=  Log_TP)) +
+  geom_point(color= 'black', fill = 'red', shape = 21,size=3.5) +
+  geom_smooth(method = lm, color = 'red', 
+              se = FALSE, fullrange = TRUE)+
   theme_bw() +
-  theme(strip.background = element_blank(), strip.placement = "outside") +
-  facet_wrap(~Tissue) +
-  scale_color_manual(values=c('purple', 'orange')) +
-  scale_shape_manual(values=c(17,19))
-
-Scatter3 <- ggplot(data = Copia_Gypsy, aes(Similarity, Log_TP)) +
-  geom_point(aes(shape= Repeat_Type, color = Repeat_Type, alpha= 1), size=2.5) +
-  geom_smooth(aes(color = Repeat_Type), method = lm, 
-              se = FALSE, fullrange = TRUE) +
-  theme_bw() +
-  theme(strip.background = element_blank(), strip.placement = "outside") +
-  facet_wrap(~Tissue) +
-  scale_color_manual(values=c('purple', 'orange')) +
-  scale_shape_manual(values=c(17,19))
-
-
-
- 
+  theme(strip.background = element_blank(), strip.placement = "outside") 
+Scatter_flor
